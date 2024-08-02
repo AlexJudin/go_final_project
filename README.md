@@ -27,3 +27,7 @@
 - `TODO_DBFILE` - относительный или абсолютный путь к файлу БД. Пример "./scheduler.db".
 - `TODO_PASSWORD` - пароль для авторизации. Пример "12345".
 - `TODO_LOGLEVEL` - уровень логирования. Пример "INFO", "DEBUG".
+
+Сборка и запуск проекта через докер:
+- сборка проекта: `docker build -t alexeyjudin .`
+- запуск проекта: `docker run -d --name go_final_project_server -p 7540:7540 alexeyjudin`
