@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
@@ -33,7 +38,7 @@ func main() {
 
 	db, err := repository.NewDB(cfg.DBFile)
 	if err != nil {
-		log.Fatalf("Error connect to repository: %+v", err)
+		log.Fatalf("error connect to repository: %+v", err)
 	}
 	defer db.Close()
 
@@ -68,9 +73,39 @@ func main() {
 	r.Post("/api/task/done", authMiddleware.Auth(taskHandler.MakeTaskDone))
 	r.Delete("/api/task", authMiddleware.Auth(taskHandler.DeleteTask))
 
+	log.Info("Start http server")
+
 	serverAddress := fmt.Sprintf("localhost:%s", cfg.Port)
-	log.Infoln("Listening on " + serverAddress)
-	if err = http.ListenAndServe(serverAddress, r); err != nil {
-		log.Panicf("Start server error: %+v", err.Error())
+	serverErr := make(chan error)
+
+	httpServer := &http.Server{
+		Addr:    serverAddress,
+		Handler: r,
+	}
+
+	go func() {
+		log.Infof("Listening on %s", serverAddress)
+		if err = httpServer.ListenAndServe(); err != nil {
+			serverErr <- err
+		}
+		close(serverErr)
+	}()
+
+	stop := make(chan os.Signal)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-stop:
+		log.Info("Stop signal received. Shutting down server...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err = httpServer.Shutdown(ctx); err != nil {
+			log.Errorf("error terminating server: %+v", err)
+		}
+		log.Info("The server has been stopped successfully")
+	case err = <-serverErr:
+		log.Errorf("Server error: %+v", err)
 	}
 }
