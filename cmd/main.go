@@ -106,6 +106,6 @@ func main() {
 		}
 		log.Info("The server has been stopped successfully")
 	case err = <-serverErr:
-		log.Errorf("Server error: %+v", err)
+		log.Errorf("server error: %+v", err)
 	}
 }
