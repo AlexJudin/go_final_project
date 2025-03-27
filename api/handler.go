@@ -29,7 +29,7 @@ func (h *TaskHandler) GetNextDate(w http.ResponseWriter, r *http.Request) {
 	now := r.FormValue("now")
 	nowTime, err := time.Parse(model.TimeFormat, now)
 	if err != nil {
-		log.Errorf("Failed to parse time. Error: %+v", err)
+		log.Errorf("failed to parse time. Error: %+v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -39,7 +39,7 @@ func (h *TaskHandler) GetNextDate(w http.ResponseWriter, r *http.Request) {
 
 	nextDate, err := h.uc.GetNextDate(nowTime, date, repeat)
 	if err != nil {
-		log.Errorf("Failed to get next date. Error: %+v", err)
+		log.Errorf("failed to get next date. Error: %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -48,7 +48,7 @@ func (h *TaskHandler) GetNextDate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write([]byte(nextDate))
 	if err != nil {
-		log.Errorf("Failed to write response. Error: %+v", err)
+		log.Errorf("failed to write response. Error: %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
