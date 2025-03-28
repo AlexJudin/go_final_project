@@ -67,7 +67,9 @@ func main() {
 	r.Post("/api/signin", authHandler.GetAuthByPassword)
 	r.Get("/api/nextdate", taskHandler.GetNextDate)
 	r.Post("/api/task", authMiddleware.Auth(taskHandler.CreateTask))
-	r.Get("/api/tasks", authMiddleware.Auth(taskHandler.GetTasks))
+	//r.Get("/api/tasks", authMiddleware.Auth(taskHandler.GetTasks))
+
+	r.Get("/api/tasks", taskHandler.GetTasks)
 	r.Get("/api/task", authMiddleware.Auth(taskHandler.GetTaskById))
 	r.Put("/api/task", authMiddleware.Auth(taskHandler.UpdateTask))
 	r.Post("/api/task/done", authMiddleware.Auth(taskHandler.MakeTaskDone))
@@ -75,7 +77,7 @@ func main() {
 
 	log.Info("Start http server")
 
-	serverAddress := fmt.Sprintf("localhost:%s", cfg.Port)
+	serverAddress := fmt.Sprintf(":%s", cfg.Port)
 	serverErr := make(chan error)
 
 	httpServer := &http.Server{
