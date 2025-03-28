@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -54,17 +55,15 @@ func main() {
 	// init auth
 	authHandler := middleware.NewAuthHandler(cfg)
 
-	//webDir := "./web"
+	webDir := "./web"
 	r := chi.NewRouter()
-	/*
-		fileServer := http.FileServer(http.Dir(webDir))
-		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-			if filepath.Ext(r.URL.Path) == ".css" {
-				w.Header().Set("Content-Type", "text/css")
-			}
-			fileServer.ServeHTTP(w, r)
-		})
-	*/
+	fileServer := http.FileServer(http.Dir(webDir))
+	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		if filepath.Ext(r.URL.Path) == ".css" {
+			w.Header().Set("Content-Type", "text/css")
+		}
+		fileServer.ServeHTTP(w, r)
+	})
 	r.Post("/api/signin", authHandler.GetAuthByPassword)
 	r.Get("/api/nextdate", taskHandler.GetNextDate)
 	r.Post("/api/task", authMiddleware.Auth(taskHandler.CreateTask))
