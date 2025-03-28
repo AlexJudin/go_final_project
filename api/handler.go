@@ -13,6 +13,8 @@ import (
 	"github.com/AlexJudin/go_final_project/usecases"
 )
 
+var messageError string
+
 type TaskHandler struct {
 	uc usecases.Task
 }
@@ -71,34 +73,29 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
-		log.Errorf("http.CreateTask: %+v", err)
+		log.Errorf("create task error: %+v", err)
+		messageError = "Переданы некорректные параметры задачи."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
-		log.Errorf("http.CreateTask: %+v", err)
+		log.Errorf("create task error: %+v", err)
+		messageError = "Не удалось прочитать параметры задачи."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	dateTaskNow := time.Now().Format(model.TimeFormat)
 	err = checkTaskRequest(&task, dateTaskNow)
 	if err != nil {
-		log.Errorf("http.CreateTask: %+v", err)
+		log.Errorf("create task error: %+v", err)
+		// Скорректировать описание ошибки
+		messageError = "Переданы некорректные данные о платежной операции."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
@@ -106,23 +103,19 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 
 	taskResp, err := h.uc.CreateTask(&task, pastDay)
 	if err != nil {
-		log.Errorf("http.CreateTask: %+v", err)
+		log.Errorf("create task error: %+v", err)
+		messageError = fmt.Sprintf("Ошибка сервера, не удалось сохранить задачу [%s] от [%s]. Попробуйте позже или обратитесь в тех. поддержку.", task.Title, task.Date)
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
 	resp, err := json.Marshal(taskResp)
 	if err != nil {
-		log.Errorf("http.CreateTask: %+v", err)
+		log.Errorf("create task error: %+v", err)
+		messageError = "Ошибка сервера. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
@@ -130,12 +123,10 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorf("http.CreateTask: %+v", err)
+		log.Errorf("create task error: %+v", err)
+		messageError = "Сервер недоступен. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusServiceUnavailable, messageError, w)
 	}
 }
 
@@ -154,23 +145,19 @@ func (h *TaskHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
 
 	tasksResp, err := h.uc.GetTasks(searchString)
 	if err != nil {
-		log.Errorf("http.GetTasks: %+v", err)
+		log.Errorf("get tasks error: %+v", err)
+		messageError = "Ошибка сервера, не удалось получить список задач. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
 	resp, err := json.Marshal(tasksResp)
 	if err != nil {
-		log.Errorf("http.GetTasks: %+v", err)
+		log.Errorf("get tasks error: %+v", err)
+		messageError = "Ошибка сервера. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
@@ -178,16 +165,14 @@ func (h *TaskHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorf("http.GetTasks: %+v", err)
+		log.Errorf("get tasks error: %+v", err)
+		messageError = "Сервер недоступен. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusServiceUnavailable, messageError, w)
 	}
 }
 
-// GetTask ... Получить задачу
+// GetTaskById ... Получить задачу
 // @Summary Получить задачу
 // @Description Получить задачу
 // @Accept json
@@ -197,38 +182,32 @@ func (h *TaskHandler) GetTasks(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} errResponse
 // @Failure 500 {object} errResponse
 // @Router /api/task [get]
-func (h *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
+func (h *TaskHandler) GetTaskById(w http.ResponseWriter, r *http.Request) {
 	taskId := r.FormValue("id")
 	if taskId == "" {
 		err := fmt.Errorf("task id is empty")
-		log.Errorf("http.GetTask: %+v", err)
+		log.Errorf("get task by id error: %+v", err)
+		messageError = "Не передан идентификатор, получение параметров задачи невозможно."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	taskResp, err := h.uc.GetTaskById(taskId)
 	if err != nil {
-		log.Errorf("http.GetTask: %+v", err)
+		log.Errorf("get task by id error: %+v", err)
+		messageError = fmt.Sprintf("Ошибка сервера, не удалось получить параметры задачи [%s]. Попробуйте позже или обратитесь в тех. поддержку.", taskId)
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
 	resp, err := json.Marshal(taskResp)
 	if err != nil {
-		log.Errorf("http.GetTask: %+v", err)
+		log.Errorf("get task by id error: %+v", err)
+		messageError = "Ошибка сервера. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
@@ -236,12 +215,10 @@ func (h *TaskHandler) GetTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(resp)
 	if err != nil {
-		log.Errorf("http.GetTask: %+v", err)
+		log.Errorf("get task by id error: %+v", err)
+		messageError = "Сервер недоступен. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusServiceUnavailable, messageError, w)
 	}
 }
 
@@ -263,34 +240,29 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	_, err := buf.ReadFrom(r.Body)
 	if err != nil {
-		log.Errorf("http.UpdateTask: %+v", err)
+		log.Errorf("update task error: %+v", err)
+		messageError = "Переданы некорректные параметры задачи."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	if err = json.Unmarshal(buf.Bytes(), &task); err != nil {
-		log.Errorf("http.UpdateTask: %+v", err)
+		log.Errorf("update task error: %+v", err)
+		messageError = "Не удалось прочитать параметры задачи."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	dateTaskNow := time.Now().Format(model.TimeFormat)
 	err = checkTaskRequest(&task, dateTaskNow)
 	if err != nil {
-		log.Errorf("http.UpdateTask: %+v", err)
+		log.Errorf("update task error: %+v", err)
+		// Скорректировать описание ошибки
+		messageError = "Переданы некорректные данные о платежной операции."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
@@ -298,12 +270,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 
 	err = h.uc.UpdateTask(&task, pastDay)
 	if err != nil {
-		log.Errorf("http.UpdateTask: %+v", err)
+		log.Errorf("update task error: %+v", err)
+		messageError = fmt.Sprintf("Ошибка сервера, не удалось обновить задачу [%s]. Попробуйте позже или обратитесь в тех. поддержку.", task.Id)
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
@@ -311,12 +281,10 @@ func (h *TaskHandler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte("{}"))
 	if err != nil {
-		log.Errorf("http.UpdateTask: %+v", err)
+		log.Errorf("update task error: %+v", err)
+		messageError = "Сервер недоступен. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusServiceUnavailable, messageError, w)
 	}
 }
 
@@ -334,23 +302,19 @@ func (h *TaskHandler) MakeTaskDone(w http.ResponseWriter, r *http.Request) {
 	taskId := r.FormValue("id")
 	if taskId == "" {
 		err := fmt.Errorf("task id is empty")
-		log.Errorf("http.MakeTaskDone: %+v", err)
+		log.Errorf("make task done error: %+v", err)
+		messageError = "Не передан идентификатор задачи, невозможно установить отметку выполнения."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	err := h.uc.MakeTaskDone(taskId)
 	if err != nil {
-		log.Errorf("http.MakeTaskDone: %+v", err)
+		log.Errorf("make task done error: %+v", err)
+		messageError = fmt.Sprintf("Ошибка сервера, не удалось обновить задачу [%s]. Попробуйте позже или обратитесь в тех. поддержку.", taskId)
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
@@ -358,12 +322,10 @@ func (h *TaskHandler) MakeTaskDone(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte("{}"))
 	if err != nil {
-		log.Errorf("http.MakeTaskDone: %+v", err)
+		log.Errorf("make task done error: %+v", err)
+		messageError = "Сервер недоступен. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusServiceUnavailable, messageError, w)
 	}
 }
 
@@ -381,23 +343,19 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	taskId := r.FormValue("id")
 	if taskId == "" {
 		err := fmt.Errorf("task id is empty")
-		log.Errorf("http.DeleteTask: %+v", err)
+		log.Errorf("delete task error: %+v", err)
+		messageError = "Не передан идентификатор, невозможно удалить задачу."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusBadRequest, errResp, w)
+		returnErr(http.StatusBadRequest, messageError, w)
 		return
 	}
 
 	err := h.uc.DeleteTask(taskId)
 	if err != nil {
-		log.Errorf("http.DeleteTask: %+v", err)
+		log.Errorf("delete task error: %+v", err)
+		messageError = fmt.Sprintf("Ошибка сервера, не удалось удалить задачу [%s]. Попробуйте позже или обратитесь в тех. поддержку.", taskId)
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusInternalServerError, messageError, w)
 		return
 	}
 
@@ -405,12 +363,10 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte("{}"))
 	if err != nil {
-		log.Errorf("http.DeleteTask: %+v", err)
+		log.Errorf("delete task error: %+v", err)
+		messageError = "Сервер недоступен. Попробуйте позже или обратитесь в тех. поддержку."
 
-		errResp := errResponse{
-			Error: err.Error(),
-		}
-		returnErr(http.StatusInternalServerError, errResp, w)
+		returnErr(http.StatusServiceUnavailable, messageError, w)
 	}
 }
 
@@ -436,7 +392,11 @@ func checkTaskRequest(task *model.Task, dateTaskNow string) error {
 	return nil
 }
 
-func returnErr(status int, message interface{}, w http.ResponseWriter) {
+func returnErr(status int, messageError string, w http.ResponseWriter) {
+	message := errResponse{
+		Error: messageError,
+	}
+
 	messageJson, err := json.Marshal(message)
 	if err != nil {
 		status = http.StatusInternalServerError
@@ -445,5 +405,8 @@ func returnErr(status int, message interface{}, w http.ResponseWriter) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_, _ = w.Write(messageJson)
+	_, err = w.Write(messageJson)
+	if err != nil {
+		log.Errorf("get wallet balance by UUID error: %+v", err)
+	}
 }

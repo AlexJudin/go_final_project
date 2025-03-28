@@ -23,16 +23,18 @@ func NewNewRepository(db *sqlx.DB) *TaskRepo {
 }
 
 func (r *TaskRepo) CreateTask(task *model.Task) (int64, error) {
+	log.Infof("start saving task [%s] от [%s]", task.Title, task.Date)
+
 	res, err := r.Db.Exec(SQLCreateTask, task.Date, task.Title, task.Comment, task.Repeat)
 	if err != nil {
-		log.Debugf("Database.CreateTask: %+v", err)
+		log.Debugf("error create task: %+v", err)
 
 		return 0, err
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		log.Debugf("Database.CreateTask: %+v", err)
+		log.Debugf("error create task: %+v", err)
 
 		return 0, err
 	}
@@ -41,11 +43,13 @@ func (r *TaskRepo) CreateTask(task *model.Task) (int64, error) {
 }
 
 func (r *TaskRepo) GetTasks() (model.TasksResp, error) {
+	log.Info("start getting tasks")
+
 	tasks := make([]model.Task, 0)
 
 	res, err := r.Db.Query(SQLGetTasks, time.Now().Format(model.TimeFormat), limit)
 	if err != nil {
-		log.Debugf("Database.GetTasks: %+v", err)
+		log.Debugf("error getting tasks: %+v", err)
 
 		return model.TasksResp{Tasks: tasks}, err
 	}
@@ -57,7 +61,7 @@ func (r *TaskRepo) GetTasks() (model.TasksResp, error) {
 	for res.Next() {
 		err = res.Scan(&task.Id, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
-			log.Debugf("Database.GetTasks: %+v", err)
+			log.Debugf("error getting tasks: %+v", err)
 
 			return model.TasksResp{Tasks: tasks}, err
 		}
@@ -73,11 +77,13 @@ func (r *TaskRepo) GetTasks() (model.TasksResp, error) {
 }
 
 func (r *TaskRepo) GetTasksBySearchString(searchString string) (model.TasksResp, error) {
+	log.Infof("start getting tasks by search string [%s]", searchString)
+
 	tasks := make([]model.Task, 0)
 
 	res, err := r.Db.Query(SQLGetTasksBySearchString, "%"+searchString+"%", limit)
 	if err != nil {
-		log.Debugf("Database.GetTasksBySearchString: %+v", err)
+		log.Debugf("error getting tasks by search: %+v", err)
 
 		return model.TasksResp{Tasks: tasks}, err
 	}
@@ -89,7 +95,7 @@ func (r *TaskRepo) GetTasksBySearchString(searchString string) (model.TasksResp,
 	for res.Next() {
 		err = res.Scan(&task.Id, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
-			log.Debugf("Database.GetTasksBySearchString: %+v", err)
+			log.Debugf("error getting tasks by search: %+v", err)
 
 			return model.TasksResp{Tasks: tasks}, err
 		}
@@ -105,11 +111,13 @@ func (r *TaskRepo) GetTasksBySearchString(searchString string) (model.TasksResp,
 }
 
 func (r *TaskRepo) GetTasksByDate(searchDate time.Time) (model.TasksResp, error) {
+	log.Infof("start getting tasks by search string [%s]", searchDate)
+
 	tasks := make([]model.Task, 0)
 
 	res, err := r.Db.Query(SQLGetTasksByDate, searchDate.Format(model.TimeFormat), limit)
 	if err != nil {
-		log.Debugf("Database.GetTasksByDate: %+v", err)
+		log.Debugf("error getting tasks by date: %+v", err)
 
 		return model.TasksResp{Tasks: tasks}, err
 	}
@@ -121,7 +129,7 @@ func (r *TaskRepo) GetTasksByDate(searchDate time.Time) (model.TasksResp, error)
 	for res.Next() {
 		err = res.Scan(&task.Id, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
-			log.Debugf("Database.GetTasksByDate: %+v", err)
+			log.Debugf("error getting tasks by date: %+v", err)
 
 			return model.TasksResp{Tasks: tasks}, err
 		}
@@ -137,11 +145,13 @@ func (r *TaskRepo) GetTasksByDate(searchDate time.Time) (model.TasksResp, error)
 }
 
 func (r *TaskRepo) GetTaskById(id string) (*model.Task, error) {
+	log.Infof("start getting task by id [%s]", id)
+
 	var task model.Task
 
 	res, err := r.Db.Query(SQLGetTaskById, id)
 	if err != nil {
-		log.Debugf("Database.GetTaskById: %+v", err)
+		log.Debugf("error getting task by id [%s]: %+v", id, err)
 
 		return nil, err
 	}
@@ -150,7 +160,7 @@ func (r *TaskRepo) GetTaskById(id string) (*model.Task, error) {
 	if res.Next() {
 		err = res.Scan(&task.Id, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
-			log.Debugf("Database.GetTaskById: %+v", err)
+			log.Debugf("error getting task by id [%s]: %+v", id, err)
 
 			return nil, err
 		}
@@ -162,7 +172,7 @@ func (r *TaskRepo) GetTaskById(id string) (*model.Task, error) {
 
 	if task.Id == "" {
 		err = fmt.Errorf("task id %s not found", id)
-		log.Debugf("Database.GetTaskById: %+v", err)
+		log.Debugf("error getting task by id [%s]: %+v", id, err)
 
 		return nil, err
 	}
@@ -171,9 +181,11 @@ func (r *TaskRepo) GetTaskById(id string) (*model.Task, error) {
 }
 
 func (r *TaskRepo) UpdateTask(task *model.Task) error {
+	log.Infof("start update task by id [%s]", task.Id)
+
 	_, err := r.Db.Exec(SQLUpdateTask, task.Id, task.Date, task.Title, task.Comment, task.Repeat)
 	if err != nil {
-		log.Debugf("Database.UpdateTask: %+v", err)
+		log.Debugf("error update task by id [%s]: %+v", task.Id, err)
 
 		return err
 	}
@@ -182,23 +194,25 @@ func (r *TaskRepo) UpdateTask(task *model.Task) error {
 }
 
 func (r *TaskRepo) MakeTaskDone(id string, date string) error {
+	log.Infof("start make task done [%s]", id)
+
 	res, err := r.Db.Exec(SQLMakeTaskDone, id, date)
 	if err != nil {
-		log.Debugf("Database.MakeTaskDone: %+v", err)
+		log.Debugf("error make task done [%s]: %+v", id, err)
 
 		return err
 	}
 
 	count, err := res.RowsAffected()
 	if err != nil {
-		log.Debugf("Database.MakeTaskDone: %+v", err)
+		log.Debugf("error make task done [%s]: %+v", id, err)
 
 		return err
 	}
 
 	if count == 0 {
 		err = fmt.Errorf("task id %s not found", id)
-		log.Debugf("Database.MakeTaskDone: %+v", err)
+		log.Debugf("error make task done: %+v", err)
 
 		return err
 	}
@@ -207,23 +221,25 @@ func (r *TaskRepo) MakeTaskDone(id string, date string) error {
 }
 
 func (r *TaskRepo) DeleteTask(id string) error {
+	log.Infof("start deleting task [%s]", id)
+
 	res, err := r.Db.Exec(SQLDeleteTask, id)
 	if err != nil {
-		log.Debugf("Database.DeleteTask: %+v", err)
+		log.Debugf("error deleting task [%s]: %+v", id, err)
 
 		return err
 	}
 
 	count, err := res.RowsAffected()
 	if err != nil {
-		log.Debugf("Database.DeleteTask: %+v", err)
+		log.Debugf("rror deleting task [%s]: %+v", id, err)
 
 		return err
 	}
 
 	if count == 0 {
 		err = fmt.Errorf("task id %s not found", id)
-		log.Debugf("Database.DeleteTask: %+v", err)
+		log.Debugf("rror deleting task: %+v", err)
 
 		return err
 	}
