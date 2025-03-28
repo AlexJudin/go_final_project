@@ -127,5 +127,9 @@ func returnErr(status int, message interface{}, w http.ResponseWriter) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_, _ = w.Write(messageJson)
+	_, err = w.Write(messageJson)
+	if err != nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		log.Errorf("get wallet balance by UUID error: %+v", err)
+	}
 }
